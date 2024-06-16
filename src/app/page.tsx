@@ -1,6 +1,46 @@
 import Image from "next/image";
+import {
+  BadRequestError,
+  CodyClient,
+  CodyClientConfig,
+  SendTextCommand,
+  SendTextCommandInput, SendTextCommandOutput,
+} from "@renfraser/cody-client";
+
 
 export default function Home() {
+
+  const sendReq = async () => {
+    const config: CodyClientConfig = {
+      endpoint: 'http://localhost:3000'
+    }
+    const client = new CodyClient(config);
+
+    const params: SendTextCommandInput = {
+      message: "hi"
+    }
+    const command = new SendTextCommand(params);
+
+    try {
+      const data: SendTextCommandOutput = await client.send(command);
+      console.log(data.message)
+      // process data.
+    } catch (error) {
+      if (error)
+        if (error instanceof BadRequestError) {
+          console.log('bad request baby')
+        } else {
+          console.log('eh?')
+        }
+      // error handling.
+    } finally {
+      // finally.
+    }
+  }
+
+
+  sendReq()
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
       <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
