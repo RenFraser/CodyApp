@@ -1,153 +1,113 @@
-import Image from "next/image";
+"use client"
+
 import {
-  BadRequestError,
-  CodyClient,
-  CodyClientConfig,
-  SendTextCommand,
-  SendTextCommandInput, SendTextCommandOutput,
+    CodyClient,
+    CodyClientConfig,
+    Message,
+    Model,
+    Participant,
+    SendMessageCommand,
+    SendMessageCommandInput,
+    SendMessageCommandOutput,
 } from "@renfraser/cody-client";
+import { Open_Sans } from "next/font/google";
+import {AdjustmentsHorizontalIcon} from "@heroicons/react/16/solid";
+import React, {useEffect, useRef, useState} from "react";
+import Msg from "@/components/Msg";
+
+const openSans = Open_Sans({ subsets: ["latin"] });
 
 
 export default function Home() {
 
-  const sendReq = async () => {
-    const config: CodyClientConfig = {
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const handleInput = () => {
+        if (textareaRef.current !== null) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+        }
+    };
+    useEffect(() => {
+        handleInput();
+    }, []);
+
+
+    const [messages, setMessages] = useState<Message[]>([])
+    const [message, setMessage] = useState<Message>({})
+
+  const messageBedrock = async (messages: Message[]): Promise<Message[]> => {
+      const config: CodyClientConfig = {
       endpoint: 'http://localhost:3000'
     }
     const client = new CodyClient(config);
 
-    const params: SendTextCommandInput = {
-      message: "hi"
+    const input: SendMessageCommandInput = {
+      model: Model.HAIKU,
+      messages: messages
     }
-    const command = new SendTextCommand(params);
+    const command = new SendMessageCommand(input);
 
-    try {
-      const data: SendTextCommandOutput = await client.send(command);
-      console.log(data.message)
-      // process data.
-    } catch (error) {
-      if (error)
-        if (error instanceof BadRequestError) {
-          console.log('bad request baby')
-        } else {
-          console.log('eh?')
-        }
-      // error handling.
-    } finally {
-      // finally.
-    }
+    const response: SendMessageCommandOutput = await client.send(command);
+
+    return response.messages || []
   }
 
+    const handleKeyDown = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === "Enter" && !e.shiftKey && !isInputEmpty()) {
+            e.preventDefault();
 
-  sendReq()
+            setMessages((prevMsgs) => [...prevMsgs, message])
+            const reply = await messageBedrock([...messages, message])
+            setMessages(reply)
+        }
+    };
 
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    const isInputEmpty = () => {
+        if (message.text) {
+            return message.text.trim() === "";
+        }
+
+        return false
+    }
+
+
+    return (
+      <>
+      <div className="flex px-5 py-5 w-full flex-row justify-between items-center">
+          <h1
+              className={`${openSans.className} text-xl text-white`}
           >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
+              Cody
+          </h1>
+          <AdjustmentsHorizontalIcon className="size-5 text-white cursor-pointer"/>
       </div>
+          <div className="relative mx-auto flex h-full w-full max-w-3xl flex-1 flex-col md:px-2 text-stone-200">
+              <div className="flex-1  flex  flex-col  gap-3  px-4  max-w-3xl  mx-auto  w-full pt-12 md:pt-16">
+                  { messages.map((msg: Message, index: number) => <Msg key={index} message={msg}/>) }
+              </div>
+              <div className="w-full sticky bottom-0 mx-auto">
+                  <textarea
+                         id="message-input"
+                         ref={textareaRef}
+                         className="text-stone-200 outline-none max-h-96 resize-none overflow-hidden bg-stone-600 border border-stone-500 text-sm rounded-t-md block w-full p-2.5"
+                         placeholder="Reply to Cody"
+                         onInput={handleInput}
+                         value={message.text}
+                         onChange={(e) => {
+                             const newMsg: Message = {
+                                 participant: Participant.HUMAN,
+                                 text: e.target.value,
+                                 images: message.images,
+                                 documents: message.documents
+                             }
+                             setMessage(newMsg)}
+                  }
+                         onKeyDown={(e) => handleKeyDown(e)}
+                         autoFocus
+                  />
+              </div>
 
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+          </div>
+      </>
   );
 }

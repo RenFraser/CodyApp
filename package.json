@@ -9,7 +9,10 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@renfraser/cody-client": "^0.0.10",
+    "@heroicons/react": "^2.1.4",
+    "@nextui-org/react": "^2.4.2",
+    "@renfraser/cody-client": "^3.0.0",
+    "framer-motion": "^11.2.11",
     "next": "14.2.4",
     "react": "^18",
     "react-dom": "^18"
